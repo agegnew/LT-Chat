@@ -1,0 +1,48 @@
+name: chat_frontend_clean_arch
+description: A new Flutter project using Clean Architecture
+
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  web_socket_channel: ^2.4.0
+  flutter_dotenv:
+  # State Management
+  flutter_bloc: ^8.0.0
+  json_annotation: ^4.9.0
+  # Dependency Injection
+  get_it: ^7.2.0
+  dartz:
+  # Networking
+  dio: ^5.2.1
+  google_fonts:
+
+  # Storage
+  shared_preferences: ^2.0.17
+
+  # File Handling
+  file_picker:
+
+  # For uploading media (Multipart)
+  # You can use dio itself, or for Firebase-based approach:
+  # firebase_core: ^2.4.1
+  # firebase_storage: ^11.0.16
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  # For code generation, if needed
+  build_runner: ^2.4.6
+  json_serializable: ^6.6.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - .env
+    - assets/
