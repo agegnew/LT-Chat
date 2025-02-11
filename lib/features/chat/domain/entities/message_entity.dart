@@ -1,3 +1,5 @@
+enum MessageStatus { sending, sent, delivered, read }
+
 class MessageEntity {
   final String id;
   final String content;
@@ -5,6 +7,7 @@ class MessageEntity {
   final String senderId;
   final String receiverId;
   final String? fileUrl; // For attachments like images, docs, etc.
+  final MessageStatus status;  // new field
 
   MessageEntity({
     required this.id,
@@ -13,5 +16,6 @@ class MessageEntity {
     required this.senderId,
     required this.receiverId,
     this.fileUrl,
+    this.status = MessageStatus.sending,
   });
 }

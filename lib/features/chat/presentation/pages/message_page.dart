@@ -1,8 +1,13 @@
-// message_page.dart
+import 'dart:async';
+import 'dart:convert'; // for jsonEncode/jsonDecode
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '/features/chat/domain/entities/chat_entity.dart';
-import '/features/chat/domain/entities/message_entity.dart';
+
+import '../../domain/entities/chat_entity.dart';
+import '../../domain/entities/message_entity.dart';
+import '../../data/sources/chat_socket_data_source.dart';
+import '../views/message_list_view.dart';
+import '../views/message_input_bar.dart';
 
 class MessagePage extends StatefulWidget {
   final ChatEntity chat;
@@ -14,21 +19,34 @@ class MessagePage extends StatefulWidget {
 }
 
 class _MessagePageState extends State<MessagePage> {
-  List<MessageEntity> messages = [];
-  final TextEditingController _controller = TextEditingController();
+  final ChatSocketDataSource _chatSocketDataSource = ChatSocketDataSource();
+
+  // Local list of messages we display
+  List<MessageEntity> _messages = [];
+
+  // Subscription to socket stream
+  StreamSubscription? _socketSubscription;
+
+  // Current user id (hardcoded for demo)
+  static const String currentUserId = 'user1';
 
   @override
   void initState() {
     super.initState();
-    // Simulate conversation-specific messages based on the chat's id.
-    if (widget.chat.chatId == "chat1") {
-      // Conversation with Alice.
-      messages = [
+    _initMessages();
+    _setupSocket();
+  }
+
+  /// Seed the page with some initial messages (similar to your existing logic).
+  void _initMessages() {
+    final chatId = widget.chat.chatId;
+    if (chatId == "chat1") {
+      _messages = [
         MessageEntity(
           id: '1',
           content: 'Hi Alice, how are you?',
           timestamp: DateTime.now().subtract(const Duration(minutes: 5)),
-          senderId: 'user1', // current user
+          senderId: 'user1',
           receiverId: 'alice_id',
           fileUrl: null,
         ),
@@ -41,9 +59,8 @@ class _MessagePageState extends State<MessagePage> {
           fileUrl: null,
         ),
       ];
-    } else if (widget.chat.chatId == "chat2") {
-      // Conversation with Bob.
-      messages = [
+    } else if (chatId == "chat2") {
+      _messages = [
         MessageEntity(
           id: '3',
           content: 'Hey Bob, are you free this weekend?',
@@ -61,9 +78,8 @@ class _MessagePageState extends State<MessagePage> {
           fileUrl: null,
         ),
       ];
-    } else if (widget.chat.chatId == "chat3") {
-      // Conversation with Carol.
-      messages = [
+    } else if (chatId == "chat3") {
+      _messages = [
         MessageEntity(
           id: '5',
           content: 'Hey Carol, long time no see!',
@@ -82,8 +98,7 @@ class _MessagePageState extends State<MessagePage> {
         ),
       ];
     } else {
-      // Default conversation if none match.
-      messages = [
+      _messages = [
         MessageEntity(
           id: '7',
           content: 'Hello, this is the default conversation.',
@@ -96,50 +111,83 @@ class _MessagePageState extends State<MessagePage> {
     }
   }
 
-  void _sendMessage() {
-    if (_controller.text.trim().isEmpty) return;
-    setState(() {
-      messages.add(MessageEntity(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        content: _controller.text.trim(),
-        timestamp: DateTime.now(),
-        senderId: 'user1',
-        // Use partnerId so that the message goes to the conversation partner.
-        receiverId: widget.chat.partnerId ?? widget.chat.chatId,
-        fileUrl: null,
-      ));
+  /// Connect to the socket and listen for incoming messages
+  void _setupSocket() {
+    _chatSocketDataSource.connect();
+    _socketSubscription = _chatSocketDataSource.messagesStream.listen((data) {
+      // Assume data is JSON from the server. Parse it:
+      try {
+        final jsonData = jsonDecode(data);
+        // For example, if the server sends:
+        // {
+        //   "id": "unique_id",
+        //   "content": "Hello from server",
+        //   "timestamp": 123456789,
+        //   "senderId": "bob_id",
+        //   "receiverId": "user1"
+        // }
+        final newMessage = MessageEntity(
+          id: jsonData['id'],
+          content: jsonData['content'],
+          timestamp: DateTime.fromMillisecondsSinceEpoch(jsonData['timestamp']),
+          senderId: jsonData['senderId'],
+          receiverId: jsonData['receiverId'],
+          fileUrl: jsonData['fileUrl'],
+        );
+
+        // Optionally, check if this message belongs to the current chat
+        if (newMessage.receiverId == currentUserId ||
+            newMessage.senderId == currentUserId) {
+          setState(() {
+            _messages.add(newMessage);
+          });
+        }
+      } catch (e) {
+        // Handle parsing error or unexpected data
+        debugPrint('Error parsing incoming data: $e');
+      }
     });
-    _controller.clear();
   }
 
-  // Helper for a glowing avatar with gradient border and shadow.
-  Widget _buildGlowingAvatar({required double radius, required ImageProvider image}) {
-    return Container(
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: const LinearGradient(
-          colors: [Colors.cyanAccent, Colors.purpleAccent],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.cyanAccent.withOpacity(0.8),
-            blurRadius: 10,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(2),
-      child: CircleAvatar(
-        radius: radius,
-        backgroundImage: image,
-      ),
+  /// Sends a message both locally and over the socket
+  void _sendMessage(String text) {
+    if (text.trim().isEmpty) return;
+
+    final newMessage = MessageEntity(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      content: text.trim(),
+      timestamp: DateTime.now(),
+      senderId: currentUserId,
+      receiverId: widget.chat.partnerId ?? widget.chat.chatId,
+      fileUrl: null,
     );
+
+    // Update local state
+    setState(() {
+      _messages.add(newMessage);
+    });
+
+    // Convert message to JSON and send to the WebSocket server
+    final messageJson = jsonEncode({
+      'id': newMessage.id,
+      'content': newMessage.content,
+      'timestamp': newMessage.timestamp.millisecondsSinceEpoch,
+      'senderId': newMessage.senderId,
+      'receiverId': newMessage.receiverId,
+      'fileUrl': newMessage.fileUrl,
+    });
+    _chatSocketDataSource.send(messageJson);
+  }
+
+  @override
+  void dispose() {
+    _socketSubscription?.cancel();
+    _chatSocketDataSource.disconnect();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    const currentUserId = 'user1';
-
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -147,16 +195,14 @@ class _MessagePageState extends State<MessagePage> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.cyanAccent),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          onPressed: () => Navigator.pop(context),
         ),
-        // Show the chat partner’s glowing avatar and chat name.
         title: Row(
           children: [
-            _buildGlowingAvatar(
+            // You can replace this with your GlowingAvatar widget if desired:
+            CircleAvatar(
               radius: 20,
-              image: widget.chat.avatarUrl != null
+              backgroundImage: widget.chat.avatarUrl != null
                   ? NetworkImage(widget.chat.avatarUrl!)
                   : const AssetImage('assets/avatar.jpg') as ImageProvider,
             ),
@@ -170,94 +216,23 @@ class _MessagePageState extends State<MessagePage> {
             ),
           ],
         ),
-        centerTitle: false,
       ),
       body: Column(
         children: [
-          // Message list.
+          // Messages List
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(20),
-              itemCount: messages.length,
-              itemBuilder: (context, index) {
-                final message = messages[index];
-                final isSentByMe = message.senderId == currentUserId;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisAlignment: isSentByMe ? MainAxisAlignment.end : MainAxisAlignment.start,
-                    children: [
-                      if (!isSentByMe)
-                        _buildGlowingAvatar(
-                          radius: 15,
-                          image: widget.chat.avatarUrl != null
-                              ? NetworkImage(widget.chat.avatarUrl!)
-                              : const AssetImage('assets/avatar.jpg') as ImageProvider,
-                        ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: isSentByMe ? Colors.cyanAccent : Color(0xFFFF41FB),
-                            borderRadius: BorderRadius.only(
-                              topLeft: const Radius.circular(20),
-                              topRight: const Radius.circular(20),
-                              bottomLeft: isSentByMe ? const Radius.circular(20) : const Radius.circular(0),
-                              bottomRight: isSentByMe ? const Radius.circular(0) : const Radius.circular(20),
-                            ),
-                          ),
-                          child: Text(
-                            message.content,
-                            style: GoogleFonts.pressStart2p(
-                              fontSize: 10,
-                              color: isSentByMe ? Colors.black : Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      if (isSentByMe)
-                        _buildGlowingAvatar(
-                          radius: 15,
-                          image: const AssetImage('assets/avatar.jpg'),
-                        ),
-                    ],
-                  ),
-                );
-              },
+            child: MessageListView(
+              messages: _messages,
+              currentUserId: currentUserId,
+              avatarImage: widget.chat.avatarUrl != null
+                  ? NetworkImage(widget.chat.avatarUrl!)
+                  : const AssetImage('assets/avatar.jpg') as ImageProvider,
             ),
           ),
-          // Message input area.
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            color: Colors.grey[900],
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    style: GoogleFonts.pressStart2p(
-                      fontSize: 10,
-                      color: Colors.white,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: "Type your message...",
-                      hintStyle: GoogleFonts.pressStart2p(
-                        fontSize: 10,
-                        color: Colors.grey,
-                      ),
-                      border: InputBorder.none,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.send, color: Colors.cyanAccent),
-                  onPressed: _sendMessage,
-                ),
-              ],
-            ),
+
+          // Message Input Bar
+          MessageInputBar(
+            onSend: _sendMessage,
           ),
         ],
       ),
