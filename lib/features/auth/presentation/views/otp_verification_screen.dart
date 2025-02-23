@@ -23,7 +23,7 @@ class OtpVerificationScreen extends StatelessWidget {
             );
           } else if (state is UserExists) {
             // User already registered, navigate to home or chat screen
-            Navigator.pushReplacementNamed(context, "/home");
+            Navigator.pushReplacementNamed(context, "/");
           } else if (state is UserNotFound) {
             // New user, navigate to profile setup
             Navigator.push(
