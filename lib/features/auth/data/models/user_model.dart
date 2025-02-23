@@ -10,11 +10,18 @@ class UserModel extends UserEntity {
     required String phone,
     required String name,
     String? photoUrl,
-    required bool isApproved, // NEW: Approval field
+    required bool isApproved,
   }) : super(id: id, phone: phone, name: name, photoUrl: photoUrl, isApproved: isApproved);
 
-  factory UserModel.fromJson(Map<String, dynamic> json) =>
-      _$UserModelFromJson(json);
+  factory UserModel.fromJson(Map<String, dynamic> json) {
+    return UserModel(
+      id: json['id'] ?? "",               // Default to empty string if null
+      phone: json['phone'] ?? "",         // Default to empty string
+      name: json['name'] ?? "",           // Default to empty string
+      photoUrl: json['photoUrl'] ?? "",   // Default to empty string
+      isApproved: json['isApproved'] ?? false,  // Default to false if null
+    );
+  }
 
   Map<String, dynamic> toJson() => _$UserModelToJson(this);
 }

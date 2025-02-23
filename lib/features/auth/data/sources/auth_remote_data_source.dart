@@ -28,6 +28,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     if (baseUrl == null) throw Exception('BASE_URL not found in .env');
 
     final response = await dio.post('$baseUrl/auth/verify-otp', data: {'phone': phone, 'otp': otp});
+    print(response.data);
     return response.statusCode == 200;
   }
 

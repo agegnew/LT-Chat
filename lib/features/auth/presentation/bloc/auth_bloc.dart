@@ -44,10 +44,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   Future<void> _onCheckUser(CheckUserEvent event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
+
     final result = await authRepository.checkUserExists(event.phone);
 
-    result.fold(
-          (error) => emit(AuthFailure(error)),
+    await result.fold(
+          (error) async {
+        emit(AuthFailure(error));
+      },
           (user) async {
         if (user != null) {
           final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -57,21 +60,29 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           if (user.isApproved) {
             emit(UserExists(user));
           } else {
-            emit(UserPendingApproval()); // FIXED: Now this state exists
+            emit(UserPendingApproval()); // Now this state is handled
           }
         } else {
-          emit(UserNotFound());
+          emit(UserNotFound()); // Triggers the profile setup screen
         }
       },
     );
   }
 
+
   Future<void> _onRegisterUser(RegisterUserEvent event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
+
     final result = await authRepository.registerUser(event.phone, event.name, event.photoUrl);
-    result.fold(
-          (error) => emit(AuthFailure(error)),
-          (_) => emit(UserRegistered()),
+
+    await result.fold(
+          (error) async {
+        emit(AuthFailure(error)); // Ensure error is properly awaited
+      },
+          (_) async {
+        emit(UserRegistered()); // Notify UI that registration is done
+      },
     );
   }
+
 }
