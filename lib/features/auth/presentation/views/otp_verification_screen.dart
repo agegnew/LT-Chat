@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/auth_bloc.dart';
 import 'profile_setup_screen.dart';
+import '../../../chat/presentation/pages/chat_page.dart';
+import 'waiting_approval_screen.dart';
 
 class OtpVerificationScreen extends StatelessWidget {
   final String phone;
@@ -22,16 +24,16 @@ class OtpVerificationScreen extends StatelessWidget {
               SnackBar(content: Text(state.message)),
             );
           } else if (state is UserExists) {
-            // User already registered, navigate to home or chat screen
-            Navigator.pushReplacementNamed(context, "/");
+            Navigator.pushReplacementNamed(context, '/chat');
           } else if (state is UserNotFound) {
-            // New user, navigate to profile setup
-            Navigator.push(
+            Navigator.pushReplacement(
               context,
               MaterialPageRoute(
                 builder: (context) => ProfileSetupScreen(phone: phone),
               ),
             );
+          } else if (state is UserPendingApproval) {
+            Navigator.pushReplacementNamed(context, '/waiting-approval');
           }
         },
         child: Padding(
@@ -46,7 +48,9 @@ class OtpVerificationScreen extends StatelessWidget {
               SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () {
-                  BlocProvider.of<AuthBloc>(context).add(VerifyOtpEvent(phone, otpController.text));
+                  BlocProvider.of<AuthBloc>(context).add(
+                    VerifyOtpEvent(phone, otpController.text),
+                  );
                 },
                 child: Text("Verify OTP"),
               ),

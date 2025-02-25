@@ -52,22 +52,25 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         emit(AuthFailure(error));
       },
           (user) async {
-        if (user != null) {
+        if (user != null && user.exists) {
+          // Only access properties if user exists
           final SharedPreferences prefs = await SharedPreferences.getInstance();
           await prefs.setString('user_token', user.id);
           await prefs.setBool('is_approved', user.isApproved);
 
           if (user.isApproved) {
-            emit(UserExists(user));
+            emit(UserExists(user)); // Existing approved user → Navigate to chat
           } else {
-            emit(UserPendingApproval()); // Now this state is handled
+            emit(UserPendingApproval()); // Existing unapproved user → Waiting Approval
           }
         } else {
-          emit(UserNotFound()); // Triggers the profile setup screen
+          emit(UserNotFound()); // New user → Navigate to profile setup
         }
       },
     );
   }
+
+
 
 
   Future<void> _onRegisterUser(RegisterUserEvent event, Emitter<AuthState> emit) async {

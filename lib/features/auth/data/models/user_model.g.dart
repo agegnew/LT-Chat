@@ -12,6 +12,7 @@ UserModel _$UserModelFromJson(Map<String, dynamic> json) => UserModel(
       name: json['name'] as String,
       photoUrl: json['photoUrl'] as String?,
       isApproved: json['isApproved'] as bool,
+      exists: json['exists'] as bool,
     );
 
 Map<String, dynamic> _$UserModelToJson(UserModel instance) => <String, dynamic>{
@@ -20,4 +21,5 @@ Map<String, dynamic> _$UserModelToJson(UserModel instance) => <String, dynamic>{
       'name': instance.name,
       'photoUrl': instance.photoUrl,
       'isApproved': instance.isApproved,
+      'exists': instance.exists,
     };

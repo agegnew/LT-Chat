@@ -7,6 +7,8 @@ import 'features/chat/presentation/bloc/chat_bloc.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/views/phone_input_screen.dart';
 import 'features/auth/presentation/views/waiting_approval_screen.dart';
+import 'features/auth/presentation/views/profile_setup_screen.dart';
+import 'features/auth/presentation/views/otp_verification_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:io';
 
@@ -70,7 +72,16 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Chat App',
         theme: ThemeData(primarySwatch: Colors.blue),
-        home: initialScreen,
+        initialRoute: '/',
+        routes: {
+          '/': (context) => initialScreen,
+          '/chat': (context) => ChatPage(),
+          '/set-profile': (context) {
+            final String phone = ModalRoute.of(context)!.settings.arguments as String;
+            return ProfileSetupScreen(phone: phone);
+          },
+          '/waiting-approval': (context) => WaitingApprovalScreen(),
+        },
       ),
     );
   }

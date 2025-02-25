@@ -3,7 +3,8 @@ class UserEntity {
   final String phone;
   final String name;
   final String? photoUrl;
-  final bool isApproved; // NEW: Admin approval status
+  final bool isApproved; // Admin approval status
+  final bool exists; // Flag to determine if user exists or not
 
   UserEntity({
     required this.id,
@@ -11,5 +12,6 @@ class UserEntity {
     required this.name,
     this.photoUrl,
     required this.isApproved,
+    required this.exists, // New property for checking user existence
   });
 }
